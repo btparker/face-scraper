@@ -1,0 +1,5 @@
+plumbum
+face_recognition
+face_recognition_models
+numpy
+tqdm
