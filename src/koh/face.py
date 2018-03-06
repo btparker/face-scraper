@@ -45,6 +45,14 @@ class Face(object):
                 cv2.circle(image, (x, y), 1, (0, 0, 255), -1)
         cv2.imwrite(path, image)
 
+    def resize(self, size):
+        (h, w, _) = self.image.shape
+        sy = size * 1.0 / h
+        sx = size * 1.0 / w
+        self.landmarks = self.landmarks * np.array([sx, sy])
+        self.landmarks = self.landmarks.astype("int")
+        self.image = cv2.resize(self.image, (size, size))\
+
     def dumps(self):
         return {
             "landmarks":    self.landmarks.tolist(),

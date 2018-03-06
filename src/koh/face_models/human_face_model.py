@@ -35,10 +35,10 @@ class HumanFaceModel(FaceModel):
         fw = right - x
         fh = bottom - y
         fs = max(fw, fh)
-        fl_pad = int(math.floor(padding * fw + (fs - fw) / 2.0))
-        fr_pad = int(math.ceil(padding * fw + (fs - fw) / 2.0))
-        ft_pad = int(math.floor(padding * fh + (fs - fh) / 2.0))
-        fb_pad = int(math.ceil(padding * fh + (fs - fh) / 2.0))
+        fl_pad = int(padding * fs + (fs - fw) / 2.0)
+        fr_pad = int(padding * fs + (fs - fw) / 2.0)
+        ft_pad = int(padding * fs + (fs - fh) / 2.0)
+        fb_pad = int(padding * fs + (fs - fh) / 2.0)
 
         x -= fl_pad
         right += fr_pad
@@ -75,18 +75,33 @@ class HumanFaceModel(FaceModel):
             cropped_face_landmarks,
         )
 
+        face.resize(size=256)
         return face
 
     def detect_faces(self, frame):
-        face_locations = face_recognition.face_locations(frame)
-        face_shapes = self._raw_face_landmarks(frame, face_locations)
+        from koh.utils import image_resize
+
+        # Resize the frame to something sensible if necessary
+        scale = 1.0
+        fw = frame.shape[1]
+        resized_frame = frame
+
+        if fw > FRAME_WIDTH:
+            scale = FRAME_WIDTH * 1.0 / fw
+            resized_frame = image_resize(image=frame, width=int(fw * scale))
+
+        face_locations = face_recognition.face_locations(resized_frame)
+        face_shapes = self._raw_face_landmarks(resized_frame, face_locations)
         face_landmarks = [self.shape_to_np(fs) for fs in face_shapes]
-        face_encodings = face_recognition.face_encodings(frame)
+        face_encodings = face_recognition.face_encodings(resized_frame)
+
+        face_landmarks = [(fs / scale) for fs in face_landmarks]
+
         faces = [
             self.create_face(frame, face_landmark, face_encoding) 
             for (face_landmark, face_encoding) in zip(face_landmarks, face_encodings)
         ]
-        
+
         return faces
 
     def get_eye(self, side, face_cropping_landmarks):
