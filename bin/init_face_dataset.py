@@ -22,7 +22,6 @@ class CreateFaceDatasetApp(cli.Application):
         import os
         import json
 
-
         data_output = os.path.join(
             os.path.dirname(__file__),
             '../data/',

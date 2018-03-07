@@ -46,6 +46,6 @@ Run Docker image (while in koh repo):
 ```shell
 docker run -it --rm \
 	-v `pwd`:/koh \
-	-e DISPLAY=$LOCAL_IP \
+	-e DISPLAY=$LOCAL_IP:0 \
 	koh /bin/bash
 ```

@@ -1,6 +1,25 @@
 import numpy as np
 import cv2
 
+def get_camera_matrix(frame):
+    (h, w) = frame.shape[:2]
+
+    # Camera internals
+    focal_length = w
+    center = (w/2, h/2)
+    camera_matrix = np.array([
+        [focal_length, 0, center[0]],
+        [0, focal_length, center[1]],
+        [0, 0, 1],
+    ], dtype = "double")
+
+    return camera_matrix
+
+def get_camera_distortion():
+    # Assuming no lens distortion
+    camera_distortion = np.zeros((4,1))
+    return camera_distortion
+
 
 def transform_2d_points(points_2d, M):
 	ones = np.ones(shape=(len(points_2d), 1))

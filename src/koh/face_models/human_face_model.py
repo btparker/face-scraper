@@ -70,12 +70,11 @@ class HumanFaceModel(FaceModel):
         ) = self.crop_image_to_landmarks(aligned_face_image, aligned_face_landmarks)
 
         face = Face(
-            cropped_face_image,
-            face_encoding,
-            cropped_face_landmarks,
+            image=cropped_face_image,
+            encoding=face_encoding,
+            landmarks=cropped_face_landmarks,
         )
 
-        face.resize(size=256)
         return face
 
     def detect_faces(self, frame):
@@ -105,11 +104,13 @@ class HumanFaceModel(FaceModel):
         return faces
 
     def get_eye(self, side, face_cropping_landmarks):
+        from koh.constants import FACIAL_LANDMARKS_IDXS
+
         if side != "right" and side != "left":
             raise ValueError("'{}' is not an eye side".format(side))
         
         eye_key = "{}_eye".format(side)
-        (start, end) = Face.FACIAL_LANDMARKS_IDXS[eye_key]
+        (start, end) = FACIAL_LANDMARKS_IDXS[eye_key]
         eye_pts = face_cropping_landmarks[start:end]
         return eye_pts
 

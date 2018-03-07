@@ -30,12 +30,14 @@ class Character(object):
 
     def dumps(self):
         target_face_data = self.target_face.dumps()
+        target_face_filename = "{}.png".format(self.target_face.get_hash())
         target_face_path = os.path.join(
             self.faces_output,
-            "{}.png".format(self.target_face.get_hash()),
+            target_face_filename,
         )
+
         self.target_face.save(target_face_path)
-        target_face_data["path"] = target_face_path
+        target_face_data["path"] = "faces/{}".format(target_face_filename)
         return {
             "name":         self.name,
             "character_id": self.character_id,
