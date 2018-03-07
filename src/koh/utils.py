@@ -1,6 +1,47 @@
 import numpy as np
 import cv2
 
+### MISC ###
+def totuple(a):
+    try:
+        return tuple(totuple(i) for i in a)
+    except TypeError:
+        return a
+
+### GEOMETRY ###
+def get_bounds_2d(points_2d):
+    # Convert to numpy array
+    points_2d = np.array(points_2d)
+
+    (x, y) = points_2d.min(axis=0)
+    (right, bottom) = points_2d.max(axis=0)
+
+    return (x, y, right, bottom)
+
+def transform_points_2d(points_2d, M):
+    ones = np.ones(shape=(len(points_2d), 1))
+    points_2d_ones = np.hstack([points_2d, ones])
+    points_2d = M.dot(points_2d_ones.T).T
+    return points_2d
+
+def get_angle_between_points(point_a, point_b):
+    # compute the angle between the eye centroids
+    dY = point_b[1] - point_a[1]
+    dX = point_b[0] - point_a[0]
+
+    angle = np.degrees(np.arctan2(dY, dX)) - 180
+    return angle
+
+def get_center_of_mass(pts, dtype=None):
+    pts = np.array(pts)
+
+    if dtype is None:
+        dtype = pts.dtype
+
+    return pts.mean(axis=0).astype(dtype)
+
+
+### CAMERA ###
 def get_camera_matrix(frame):
     (h, w) = frame.shape[:2]
 
@@ -21,20 +62,7 @@ def get_camera_distortion():
     return camera_distortion
 
 
-def transform_2d_points(points_2d, M):
-	ones = np.ones(shape=(len(points_2d), 1))
-	points_2d_ones = np.hstack([points_2d, ones])
-	points_2d = M.dot(points_2d_ones.T).T
-	points_2d = points_2d.astype("int")
-	return points_2d
-
-def get_angle_between_points(point_a, point_b):
-	# compute the angle between the eye centroids
-    dY = point_b[1] - point_a[1]
-    dX = point_b[0] - point_a[0]
-
-    angle = np.degrees(np.arctan2(dY, dX)) - 180
-    return angle
+### IMAGE ###
 
 # https://stackoverflow.com/questions/44650888/resize-an-image-without-distortion-opencv
 def image_resize(image, width = None, height = None, inter = cv2.INTER_AREA):

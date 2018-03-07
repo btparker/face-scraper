@@ -7,6 +7,7 @@ import numpy as np
 import cv2
 
 FRAME_WIDTH = 512
+FACE_SIZE = 256
 
 class HumanFaceModel(FaceModel):
 
@@ -14,48 +15,55 @@ class HumanFaceModel(FaceModel):
         predictor_68_point_model = face_recognition_models.pose_predictor_model_location()
         self.pose_predictor = dlib.shape_predictor(predictor_68_point_model)
 
-    def shape_to_np(self, shape, dtype="int"):
+    def face_shape_to_np(self, face_shape, dtype="int"):
         # initialize the list of (x, y)-coordinates
         coords = np.zeros((68, 2), dtype=dtype)
      
         # loop over the 68 facial landmarks and convert them
         # to a 2-tuple of (x, y)-coordinates
         for i in range(0, 68):
-            coords[i] = (shape.part(i).x, shape.part(i).y)
+            coords[i] = (face_shape.part(i).x, face_shape.part(i).y)
      
         # return the list of (x, y)-coordinates
         return coords
 
     def crop_image_to_landmarks(self, image, landmarks, is_square=True, padding=0.1):
         import math
-        # Crop
-        (x, y) = landmarks.min(axis=0)
-        (right, bottom) = landmarks.max(axis=0)
+        from koh.utils import get_bounds_2d
 
+        (x, y, right, bottom) = get_bounds_2d(landmarks)
+
+        # Crop
         fw = right - x
         fh = bottom - y
         fs = max(fw, fh)
-        fl_pad = int(padding * fs + (fs - fw) / 2.0)
-        fr_pad = int(padding * fs + (fs - fw) / 2.0)
-        ft_pad = int(padding * fs + (fs - fh) / 2.0)
-        fb_pad = int(padding * fs + (fs - fh) / 2.0)
+        fl_pad = padding * fs + (fs - fw) / 2.0
+        fr_pad = padding * fs + (fs - fw) / 2.0
+        ft_pad = padding * fs + (fs - fh) / 2.0
+        fb_pad = padding * fs + (fs - fh) / 2.0
 
         x -= fl_pad
         right += fr_pad
         y -= ft_pad
         bottom += fb_pad
 
-        cropped_image = image[y: bottom, x: right]
+        cx = int(round(x))
+        cy = int(round(y))
+        cright = int(round(right))
+        cbottom = int(round(bottom))
+
+        cropped_image = image[cy: cbottom, cx: cright]
         cropped_landmarks = landmarks - np.array([x, y])
 
         return cropped_image, cropped_landmarks
 
     def align_image_to_eyeline(self, image, face_landmark):
-        from koh.utils import transform_2d_points
+        from koh.utils import transform_points_2d
 
-        M = self.get_face_alignment_matrix(face_landmark)
-        face_landmark = transform_2d_points(face_landmark, M)
-        output = cv2.warpAffine(image, M, image.shape[:2])
+        (h, w) = image.shape[:2]
+        M = self.get_face_alignment_matrix(image, face_landmark)
+        face_landmark = transform_points_2d(face_landmark, M)
+        output = cv2.warpAffine(image, M, (w, h))
         return (output, face_landmark)
 
     def create_face(self, image, face_landmark, face_encoding):
@@ -75,6 +83,7 @@ class HumanFaceModel(FaceModel):
             landmarks=cropped_face_landmarks,
         )
 
+        face.resize(size=FACE_SIZE)
         return face
 
     def detect_faces(self, frame):
@@ -91,10 +100,10 @@ class HumanFaceModel(FaceModel):
 
         face_locations = face_recognition.face_locations(resized_frame)
         face_shapes = self._raw_face_landmarks(resized_frame, face_locations)
-        face_landmarks = [self.shape_to_np(fs) for fs in face_shapes]
+        face_landmarks = [self.face_shape_to_np(fs) for fs in face_shapes]
         face_encodings = face_recognition.face_encodings(resized_frame)
 
-        face_landmarks = [(fs / scale) for fs in face_landmarks]
+        face_landmarks = [np.array(fs / scale) for fs in face_landmarks]
 
         faces = [
             self.create_face(frame, face_landmark, face_encoding) 
@@ -103,39 +112,44 @@ class HumanFaceModel(FaceModel):
 
         return faces
 
-    def get_eye(self, side, face_cropping_landmarks):
+    def get_landmarks_group(self, group_key, landmarks):
         from koh.constants import FACIAL_LANDMARKS_IDXS
+        (start, end) = FACIAL_LANDMARKS_IDXS[group_key]
+        return landmarks[start:end]
 
-        if side != "right" and side != "left":
-            raise ValueError("'{}' is not an eye side".format(side))
-        
-        eye_key = "{}_eye".format(side)
-        (start, end) = FACIAL_LANDMARKS_IDXS[eye_key]
-        eye_pts = face_cropping_landmarks[start:end]
-        return eye_pts
-
-    def get_face_alignment_matrix(self, face_landmarks):
+    def get_face_alignment_matrix(self, image, face_landmarks):
         from koh.utils import get_angle_between_points
+        from koh.utils import get_center_of_mass
+        from koh.utils import totuple
+
+        (h, w) = image.shape[:2]
+        image_center = np.array([w/2, h/2])
 
         # extract the left and right eye (x, y)-coordinates
-        left_eye_pts = self.get_eye("left", face_landmarks)
-        right_eye_pts = self.get_eye("right", face_landmarks)
+        left_eye_pts = self.get_landmarks_group("left_eye", face_landmarks)
+        right_eye_pts = self.get_landmarks_group("right_eye", face_landmarks)
 
          # compute the center of mass for each eye
-        left_eye_center = left_eye_pts.mean(axis=0).astype("int")
-        right_eye_center = right_eye_pts.mean(axis=0).astype("int")
+        left_eye_center = get_center_of_mass(left_eye_pts)
+        right_eye_center = get_center_of_mass(right_eye_pts)
  
         angle = get_angle_between_points(left_eye_center, right_eye_center)
 
-
         # compute center (x, y)-coordinates (i.e., the median point)
         # between the two eyes in the input image
-        eyes_center = ((left_eye_center[0] + right_eye_center[0]) // 2,
-            (left_eye_center[1] + right_eye_center[1]) // 2)
- 
+        eyes_center = get_center_of_mass([left_eye_center, right_eye_center])
+
         scale = 1.0
+        tX = image_center[0]
+        tY = image_center[1]
+
+        eyes_center_tuple = totuple(eyes_center)
+
         # grab the rotation matrix for rotating and scaling the face
-        M = cv2.getRotationMatrix2D(eyes_center, angle, scale)
+        M = cv2.getRotationMatrix2D(eyes_center_tuple, angle, scale)
+
+        M[0, 2] += (tX - eyes_center[0])
+        M[1, 2] += (tY - eyes_center[1])
 
         return M
 

@@ -10,4 +10,5 @@ RUN pip --no-cache-dir install -r ./requirements.txt
 
 COPY . /koh
 ENV PYTHONPATH /koh/src/:$PYTHONPATH
+ENV PATH /koh/bin/:$PATH
 WORKDIR /koh

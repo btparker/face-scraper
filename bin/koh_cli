@@ -1,0 +1,14 @@
+from plumbum import cli
+from koh.cli_apps.create_face_dataset import CreateFaceDatasetApp
+from koh.cli_apps.list_face_datasets import ListFaceDatasetsApp
+from koh.cli_apps.extract_faces import ExtractFacesApp
+
+class KohCliApp(cli.Application):
+    pass
+
+KohCliApp.subcommand("create", CreateFaceDatasetApp)
+KohCliApp.subcommand("list", ListFaceDatasetsApp)
+KohCliApp.subcommand("extract", ExtractFacesApp)
+
+if __name__ == '__main__':
+    KohCliApp.run()

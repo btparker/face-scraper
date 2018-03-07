@@ -16,16 +16,18 @@ class CreateFaceDatasetApp(cli.Application):
         argtype=str,
         mandatory=True,
         help='Name of the identity',
-    ) 
+    )
+
+    data_output = cli.SwitchAttr(
+        ['--datasets'],
+        argtype=str,
+        mandatory=True,
+        help='Path to output datasets',
+    )
 
     def main(self):
         import os
         import json
-
-        data_output = os.path.join(
-            os.path.dirname(__file__),
-            '../data/',
-        )
 
         frame = cv2.imread(self.image_path)
         face_model = HumanFaceModel()
@@ -38,8 +40,10 @@ class CreateFaceDatasetApp(cli.Application):
             ))
 
         face = faces[0]
-        character = Character(name=self.name, target_face=face, output=data_output)
-
+        character_id = self.name.replace(' ', '_').lower()
+        character_output = os.path.join(self.data_output, character_id)
+        character = Character(name=self.name, target_face=face, character_dir=character_output)
+        character.persist()
 
 if __name__ == '__main__':
     CreateFaceDatasetApp.run()

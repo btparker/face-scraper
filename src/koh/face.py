@@ -3,11 +3,10 @@ import cv2
 
 class Face(object):
 
-    def __init__(self, image, encoding, landmarks, size=256):
+    def __init__(self, image, encoding, landmarks):
         self.image = image
         self.landmarks = landmarks
         self.encoding = encoding
-        self.resize(size=size)
         self.pose = self.compute_pose(image=image, landmarks_2d=landmarks)
 
     def get_image(self, size=None):
@@ -41,6 +40,8 @@ class Face(object):
 
     def draw_landmarks(self, image):
         for (x, y) in self.landmarks:
+            x = int(round(x))
+            y = int(round(y))
             cv2.circle(image, (x, y), 1, (0, 0, 255), -1)
         return image
 
@@ -50,6 +51,7 @@ class Face(object):
         from koh.constants import TRACKED_FACIAL_LANDMARKS
 
         tracked_landmarks_2d = self.landmarks[TRACKED_FACIAL_LANDMARKS]
+        tracked_landmarks_2d = tracked_landmarks_2d.astype("int")
         camera_matrix = get_camera_matrix(frame=image)
         camera_distortion = get_camera_distortion()
 
